@@ -23,7 +23,7 @@ function () {
           case 0:
             _context.prev = 0;
             _context.next = 3;
-            return _Lesson["default"].getLessons(ctx.params);
+            return _Lesson["default"].getLessons(ctx.query);
 
           case 3:
             ctx.response.body = _context.sent;

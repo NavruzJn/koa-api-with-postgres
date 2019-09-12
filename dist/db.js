@@ -4,6 +4,8 @@ var _interopRequireDefault = require("@babel/runtime/helpers/interopRequireDefau
 
 var _knex = _interopRequireDefault(require("knex"));
 
+var _knexPaginator = _interopRequireDefault(require("knex-paginator"));
+
 var _config = require("./config");
 
 var db = (0, _knex["default"])({
@@ -14,4 +16,5 @@ var db = (0, _knex["default"])({
   },
   debug: _config.databaseDebug === true
 });
+(0, _knexPaginator["default"])(db);
 module.exports = db;

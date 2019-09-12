@@ -1,15 +1,17 @@
 import db from '../../db';
 
 const filterFields = {
-    date: Date,
-    status: integer,
-    t_id: "teacherIds",
-    students: "studentsCount", "page", "lessonsPerPage"
+    date: "date",
+    status: "status",
+    teacherIds: "teacherIds",
+    students: "studentsCount",
+    page: "page",
+    lessonsPerPage: "lessonsPerPage"
 };
 
 async function nest(lessons) {
     const groupedLessons = [];
-    lessons.forEach((lesson) => {
+    await lessons.data.forEach((lesson) => {
         let reducer = false;
         const {
             id,
@@ -30,65 +32,60 @@ async function nest(lessons) {
 
         groupedLessons.forEach((l) => {
             if(lesson.id === l.id) {
-                if(!l.students.indexOf(student) < 0) {
+                if(!l.students.find(s => s.id === student.id)) {
                     l.students.push(student);
+                    l.visitCount++;
                 }
-                if(!l.teachers.indexOf(teacher) < 0) {
-                    l.teachers.push(teacher);
-                }
+                if(!l.teachers.find(t => t.id === teacher.id)) l.teachers.push(teacher);
                 reducer = true;
             }
         });
 
         if(!reducer) {
             const l = { id, date, title, status };
-            l.students = [];
-            l.teachers = [];
-            l.students.push(student);
-            l.teachers.push(teacher);
+            l.visitCount = student.visit ? 1 : 0;
+            l.students = [student];
+            l.teachers = [student];
             groupedLessons.push(l);
         }
     });
 
-    return groupedLessons;
-  // return await lessons.map((lesson) => {
-  //   const {
-  //     student_name,
-  //     student_id,
-  //     student_visit,
-  //     teacher_name,
-  //     teacher_id, ...rest} = lessons;
-  //
-  //   return {
-  //     ...rest,
-  //     user: {
-  //       first_name: student_name,
-  //       last_name: student_id,
-  //       phone_number: student_visit},
-  //     category: order.category_id && {
-  //       name: category_name,
-  //       min_price: category_min_price,
-  //       day_hour_price: category_day_hour_price,
-  //       night_hour_price: category_night_hour_price,
-  //       five_hours_price: category_five_hours_price,
-  //       twelve_hours_price: category_twelve_hours_price}}
-  // })
+    lessons.data = groupedLessons;
+
+    return lessons;
 }
 
 export function getLessons(options) {
-    const query = {};
-    filterFields.forEach((field) => {
-        if(field in options) {
-            const values = options[field].split(",");
-            if(values.length > 1) {
-                query[field] = "IN (" + options[field] + ")";
-            } else {
-                query[field] = options[field];
-            }
+    let query = '';
+    const perPage = options[filterFields.lessonsPerPage] || 10;
+    const page = options[filterFields.page] || 1;
+    Object.keys(options).forEach(key => {
+        const values = options[key].split(",");
+        switch (key) {
+            case filterFields.date:
+                values.map((v) => new Date(v));
+                if(value.length>0) {
+                    query += `date IN (${values})`;
+                } else {
+                    query += ` date = ${values[0]}`;
+                }
+                break;
+            case filterFields.status:
+                query +=  ` status = ${parseInt(values[0], 10)}`;
+                break;
+            case filterFields.teacherIds:
+                values.map((v) => parseInt(v, 10));
+                query += ` t_id IN (${values})`;
+                break;
+            case filterFields.students:
+                values.map((v) => parseInt(v, 10));
+                query = ` s_id IN (${values})`;
+                break;
+            default: break;
         }
     });
     return db('lessons')
-        //.where(query)
+        .whereRaw(query)
         .leftJoin(
             db('lesson_teachers')
                 .select("lesson_id", "t_id", "t_name")
@@ -113,6 +110,6 @@ export function getLessons(options) {
                 .as("lesson_students"),
             "lessons.id", "lesson_students.lesson_id"
         )
-        .orderBy('lessons.id')
+        .paginate(perPage, page)
         .then(lessons=> lessons && nest(lessons));
 }

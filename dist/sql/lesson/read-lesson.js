@@ -15,7 +15,14 @@ var _asyncToGenerator2 = _interopRequireDefault(require("@babel/runtime/helpers/
 
 var _db = _interopRequireDefault(require("../../db"));
 
-var filterFields = ["date", "status", "teacherIds", "studentsCount", "page", "lessonsPerPage"];
+var filterFields = {
+  date: "date",
+  status: "status",
+  teacherIds: "teacherIds",
+  students: "studentsCount",
+  page: "page",
+  lessonsPerPage: "lessonsPerPage"
+};
 
 function nest(_x) {
   return _nest.apply(this, arguments);
@@ -31,7 +38,8 @@ function _nest() {
         switch (_context.prev = _context.next) {
           case 0:
             groupedLessons = [];
-            lessons.forEach(function (lesson) {
+            _context.next = 3;
+            return lessons.data.forEach(function (lesson) {
               var reducer = false;
               var id = lesson.id,
                   date = lesson.date,
@@ -49,14 +57,16 @@ function _nest() {
               };
               groupedLessons.forEach(function (l) {
                 if (lesson.id === l.id) {
-                  if (!l.students.indexOf(student) < 0) {
+                  if (!l.students.find(function (s) {
+                    return s.id === student.id;
+                  })) {
                     l.students.push(student);
+                    l.visitCount++;
                   }
 
-                  if (!l.teachers.indexOf(teacher) < 0) {
-                    l.teachers.push(teacher);
-                  }
-
+                  if (!l.teachers.find(function (t) {
+                    return t.id === teacher.id;
+                  })) l.teachers.push(teacher);
                   reducer = true;
                 }
               });
@@ -68,16 +78,18 @@ function _nest() {
                   title: title,
                   status: status
                 };
-                l.students = [];
-                l.teachers = [];
-                l.students.push(student);
-                l.teachers.push(teacher);
+                l.visitCount = student.visit ? 1 : 0;
+                l.students = [student];
+                l.teachers = [student];
                 groupedLessons.push(l);
               }
             });
-            return _context.abrupt("return", groupedLessons);
 
           case 3:
+            lessons.data = groupedLessons;
+            return _context.abrupt("return", lessons);
+
+          case 5:
           case "end":
             return _context.stop();
         }
@@ -88,19 +100,49 @@ function _nest() {
 }
 
 function getLessons(options) {
-  var query = {};
-  filterFields.forEach(function (field) {
-    if (field in options) {
-      var values = options[field].split(",");
+  var query = '';
+  var perPage = options[filterFields.lessonsPerPage] || 10;
+  var page = options[filterFields.page] || 1;
+  Object.keys(options).forEach(function (key) {
+    var values = options[key].split(",");
 
-      if (values.length > 1) {
-        query[field] = "IN (" + options[field] + ")";
-      } else {
-        query[field] = options[field];
-      }
+    switch (key) {
+      case filterFields.date:
+        values.map(function (v) {
+          return new Date(v);
+        });
+
+        if (value.length > 0) {
+          query += "date IN (".concat(values, ")");
+        } else {
+          query += " date = ".concat(values[0]);
+        }
+
+        break;
+
+      case filterFields.status:
+        query += " status = ".concat(parseInt(values[0], 10));
+        break;
+
+      case filterFields.teacherIds:
+        values.map(function (v) {
+          return parseInt(v, 10);
+        });
+        query += " t_id IN (".concat(values, ")");
+        break;
+
+      case filterFields.students:
+        values.map(function (v) {
+          return parseInt(v, 10);
+        });
+        query = " s_id IN (".concat(values, ")");
+        break;
+
+      default:
+        break;
     }
   });
-  return (0, _db["default"])('lessons').where(query).leftJoin((0, _db["default"])('lesson_teachers').select("lesson_id", "t_id", "t_name").leftJoin((0, _db["default"])('teachers').select("id as t_id", "name as t_name").as("teachers"), "lesson_teachers.teacher_id", "teachers.t_id").as("lesson_teachers"), "lessons.id", 'lesson_teachers.lesson_id').leftJoin((0, _db["default"])('lesson_students').select("lesson_id", "s_id", "s_name", "visit").leftJoin((0, _db["default"])('students').select("id as s_id", "name as s_name").as("students"), "lesson_students.student_id", "students.s_id").as("lesson_students"), "lessons.id", "lesson_students.lesson_id").orderBy('lessons.id').then(function (lessons) {
+  return (0, _db["default"])('lessons').whereRaw(query).leftJoin((0, _db["default"])('lesson_teachers').select("lesson_id", "t_id", "t_name").leftJoin((0, _db["default"])('teachers').select("id as t_id", "name as t_name").as("teachers"), "lesson_teachers.teacher_id", "teachers.t_id").as("lesson_teachers"), "lessons.id", 'lesson_teachers.lesson_id').leftJoin((0, _db["default"])('lesson_students').select("lesson_id", "s_id", "s_name", "visit").leftJoin((0, _db["default"])('students').select("id as s_id", "name as s_name").as("students"), "lesson_students.student_id", "students.s_id").as("lesson_students"), "lessons.id", "lesson_students.lesson_id").paginate(perPage, page).then(function (lessons) {
     return lessons && nest(lessons);
   });
 }

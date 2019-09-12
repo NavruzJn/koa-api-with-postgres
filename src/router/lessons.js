@@ -9,7 +9,7 @@ router
 
     .get("/", async ctx => {
       try {
-          ctx.response.body = await Lesson.getLessons(ctx.params);
+          ctx.response.body = await Lesson.getLessons(ctx.query);
       } catch (error) {
         console.log("error", error);
         ctx.status = 402;
