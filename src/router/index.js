@@ -1,5 +1,5 @@
 import compose from 'koa-compose';
-import news from './lessons';
+import lessons from './lessons';
 
 function combineRoutes(routes) {
   if (!Array.isArray(routes)) routes = [].prototype.slice.call(arguments);
@@ -13,6 +13,6 @@ function combineRoutes(routes) {
   return compose(middleware);
 }
 
-const routes = [news];
+const routes = [lessons];
 
 export default () => combineRoutes(routes);
