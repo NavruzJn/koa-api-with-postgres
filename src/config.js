@@ -5,5 +5,5 @@ export const redisConfig = {
   port: 6379
 };
 
-export const databaseUrl = "postgresql://navruzjn:malikasadiq510@localhost:5432/test";
+export const databaseUrl = "postgresql://username:password@localhost:5432/dbname";
 export const databaseDebug = false;
